@@ -60,28 +60,37 @@ public class SecurityConfig {
             .sessionManagement(session ->
                 session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                // Public endpoints
+
+                // ── Public ───────────────────────────────────────────────
                 .requestMatchers("/auth/**").permitAll()
                 .requestMatchers("/swagger-ui/**", "/api-docs/**", "/swagger-ui.html").permitAll()
 
-                // ADMIN only
-                .requestMatchers("/admin/**").hasRole("ADMIN")
+                // ── GET /jobs and GET /jobs/** — ALL authenticated roles ──
+                // FIX: must be FIRST before any role-restricted rules
+                // "/jobs" (exact) + "/jobs/**" (with path segments) both needed
+                .requestMatchers(HttpMethod.GET, "/jobs").authenticated()
+                .requestMatchers(HttpMethod.GET, "/jobs/**").authenticated()
 
-                // PLACEMENT OFFICER and ADMIN
-                .requestMatchers("/officer/**").hasAnyRole("PLACEMENT_OFFICER", "ADMIN")
-
-                // EMPLOYER, PLACEMENT OFFICER and ADMIN
+                // ── Jobs write operations — role restricted ───────────────
+                .requestMatchers(HttpMethod.POST, "/jobs").hasAnyRole("EMPLOYER", "ADMIN")
                 .requestMatchers(HttpMethod.POST, "/jobs/**").hasAnyRole("EMPLOYER", "ADMIN")
                 .requestMatchers(HttpMethod.PUT, "/jobs/**").hasAnyRole("EMPLOYER", "PLACEMENT_OFFICER", "ADMIN")
+                .requestMatchers(HttpMethod.DELETE, "/jobs/**").hasAnyRole("EMPLOYER", "ADMIN")
+                .requestMatchers(HttpMethod.PATCH, "/jobs/**").hasAnyRole("ADMIN", "PLACEMENT_OFFICER")
 
-                // STUDENT
+                // ── Admin only ───────────────────────────────────────────
+                .requestMatchers("/admin/**").hasRole("ADMIN")
+
+                // ── Officer + Admin ──────────────────────────────────────
+                .requestMatchers("/officer/**").hasAnyRole("PLACEMENT_OFFICER", "ADMIN")
+
+                // ── Student only ─────────────────────────────────────────
                 .requestMatchers("/student/**").hasRole("STUDENT")
 
-                // EMPLOYER
+                // ── Employer only ────────────────────────────────────────
                 .requestMatchers("/employer/**").hasAnyRole("EMPLOYER", "ADMIN")
 
-                // Authenticated access
-                .requestMatchers(HttpMethod.GET, "/jobs/**").authenticated()
+                // ── Other authenticated endpoints ────────────────────────
                 .requestMatchers("/applications/**").authenticated()
                 .requestMatchers("/notifications/**").authenticated()
                 .requestMatchers("/profile/**").authenticated()
@@ -93,16 +102,21 @@ public class SecurityConfig {
 
         return http.build();
     }
-
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of(
+
+        // FIXED: use setAllowedOriginPatterns instead of setAllowedOrigins
+        // setAllowedOrigins + allowCredentials=true is invalid and breaks preflight
+        configuration.setAllowedOriginPatterns(List.of(
             "http://localhost:3000",
             "http://localhost:5173",
             "http://localhost:5174"
         ));
-        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
+
+        configuration.setAllowedMethods(Arrays.asList(
+            "GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"
+        ));
         configuration.setAllowedHeaders(Arrays.asList(
             "Authorization", "Content-Type", "Accept", "Origin",
             "Access-Control-Request-Method", "Access-Control-Request-Headers"

@@ -3,6 +3,7 @@ package com.placement.system.repository;
 import com.placement.system.entity.Application;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import java.util.List;
 import java.util.Optional;
@@ -29,4 +30,15 @@ public interface ApplicationRepository extends JpaRepository<Application, Long> 
 
     @Query("SELECT COUNT(a) FROM Application a WHERE a.status = 'SELECTED'")
     long countSelectedApplications();
+    
+    @Query("SELECT DISTINCT a FROM Application a " +
+            "LEFT JOIN FETCH a.student " +
+            "LEFT JOIN FETCH a.studentProfile " +
+            "LEFT JOIN FETCH a.jobPosting jp " +
+            "LEFT JOIN FETCH jp.postedBy " +
+            "WHERE a.student.id = :studentId")
+     List<Application> findByStudentIdWithDetails(@Param("studentId") Long studentId);
+     
+    
+    
 }

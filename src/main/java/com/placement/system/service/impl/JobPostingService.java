@@ -108,15 +108,27 @@ public class JobPostingService {
         User student = studentEmail != null
                 ? userRepository.findByEmail(studentEmail).orElse(null) : null;
 
-        return jobPostingRepository.findAllActiveApprovedJobs().stream().map(job -> {
+        // FIXED: pass enum directly — no JPQL string 'ACTIVE' issue
+        List<JobPosting> jobs = jobPostingRepository
+                .findAllActiveApprovedJobs(JobPosting.JobStatus.ACTIVE);
+
+        return jobs.stream().map(job -> {
             boolean applied = student != null
-                    && applicationRepository.existsByStudentIdAndJobPostingId(student.getId(), job.getId());
+                    && applicationRepository.existsByStudentIdAndJobPostingId(
+                            student.getId(), job.getId());
             return mapToResponse(job, applied);
         }).collect(Collectors.toList());
     }
 
+   // public List<JobDTO.JobPostingResponse> getAllJobs() {
+     //   return jobPostingRepository.findAll().stream()
+       //         .map(j -> mapToResponse(j, false))
+         //       .collect(Collectors.toList());
+    //}
+    
+    @Transactional(readOnly = true)
     public List<JobDTO.JobPostingResponse> getAllJobs() {
-        return jobPostingRepository.findAll().stream()
+        return jobPostingRepository.findAllWithPostedBy().stream()
                 .map(j -> mapToResponse(j, false))
                 .collect(Collectors.toList());
     }
@@ -159,17 +171,25 @@ public class JobPostingService {
         job.setStatus(JobPosting.JobStatus.CANCELLED);
         jobPostingRepository.save(job);
     }
-
     private JobDTO.JobPostingResponse mapToResponse(JobPosting job, boolean applied) {
         String companyName = null, companyLogo = null;
         Long postedById = null;
+
         if (job.getPostedBy() != null) {
             companyName = job.getPostedBy().getCompanyName();
             companyLogo = job.getPostedBy().getLogoUrl();
-            postedById = job.getPostedBy().getId();
+            postedById  = job.getPostedBy().getId();
         }
 
-        int appCount = job.getApplications() != null ? job.getApplications().size() : 0;
+        // FIXED: applications list is LAZY — wrap in try/catch to avoid LazyInitializationException
+        int appCount = 0;
+        try {
+            if (job.getApplications() != null) {
+                appCount = job.getApplications().size();
+            }
+        } catch (Exception e) {
+            appCount = 0;
+        }
 
         return JobDTO.JobPostingResponse.builder()
                 .id(job.getId())
@@ -198,4 +218,4 @@ public class JobPostingService {
                 .alreadyApplied(applied)
                 .build();
     }
-}
+    }

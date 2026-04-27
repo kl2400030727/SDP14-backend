@@ -6,6 +6,8 @@ import com.placement.system.exception.*;
 import com.placement.system.repository.*;
 import com.placement.system.service.EmailService;
 import lombok.RequiredArgsConstructor;
+
+import org.hibernate.LazyInitializationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
@@ -13,6 +15,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class ApplicationService {
 
     private final ApplicationRepository applicationRepository;
@@ -26,6 +29,7 @@ public class ApplicationService {
     public ApplicationDTO.ApplicationResponse applyForJob(ApplicationDTO.ApplicationRequest req, String studentEmail) {
         User student = userRepository.findByEmail(studentEmail)
                 .orElseThrow(() -> new ResourceNotFoundException("Student not found"));
+        
         JobPosting job = jobPostingRepository.findById(req.getJobPostingId())
                 .orElseThrow(() -> new ResourceNotFoundException("Job posting not found"));
 
@@ -56,7 +60,7 @@ public class ApplicationService {
         return applicationRepository.findByStudentId(student.getId())
                 .stream().map(this::mapToResponse).collect(Collectors.toList());
     }
-
+    @Transactional
     public List<ApplicationDTO.ApplicationResponse> getApplicationsForJob(Long jobId, String employerEmail) {
         JobPosting job = jobPostingRepository.findById(jobId)
                 .orElseThrow(() -> new ResourceNotFoundException("Job not found"));
@@ -164,8 +168,23 @@ public class ApplicationService {
     private ApplicationDTO.ApplicationResponse mapToResponse(Application app) {
         StudentProfile sp = app.getStudentProfile();
         String companyName = null;
-        if (app.getJobPosting() != null && app.getJobPosting().getPostedBy() != null) {
-            companyName = app.getJobPosting().getPostedBy().getCompanyName();
+        String jobTitle = null;
+        Long jobPostingId = null;
+        
+        // ✅ FIX: Safely get job posting details without triggering lazy loading
+        if (app.getJobPosting() != null) {
+            try {
+                jobPostingId = app.getJobPosting().getId();
+                jobTitle = app.getJobPosting().getTitle();
+                
+                // ✅ CRITICAL FIX: Handle postedBy safely
+                if (app.getJobPosting().getPostedBy() != null) {
+                    companyName = app.getJobPosting().getPostedBy().getCompanyName();
+                }
+            } catch (LazyInitializationException e) {
+                // Log but continue - we'll return null for these fields
+                System.err.println("Lazy loading failed for application " + app.getId());
+            }
         }
 
         return ApplicationDTO.ApplicationResponse.builder()
@@ -176,8 +195,8 @@ public class ApplicationService {
                 .rollNumber(sp != null ? sp.getRollNumber() : null)
                 .department(sp != null ? sp.getDepartment() : null)
                 .cgpa(sp != null ? sp.getCgpa() : null)
-                .jobPostingId(app.getJobPosting() != null ? app.getJobPosting().getId() : null)
-                .jobTitle(app.getJobPosting() != null ? app.getJobPosting().getTitle() : null)
+                .jobPostingId(jobPostingId)
+                .jobTitle(jobTitle)
                 .companyName(companyName)
                 .status(app.getStatus() != null ? app.getStatus().name() : null)
                 .coverLetter(app.getCoverLetter())

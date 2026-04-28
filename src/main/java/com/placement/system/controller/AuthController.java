@@ -28,7 +28,10 @@ public class AuthController {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success("Registration successful. Please verify your email.", response));
     }
-
+    @GetMapping("/")  // This handles root path
+    public ResponseEntity<String> root() {
+        return ResponseEntity.ok("Placement System API is running");
+    }
     @PostMapping("/login")
     @Operation(summary = "Login with email and password")
     public ResponseEntity<ApiResponse<AuthDTO.AuthResponse>> login(

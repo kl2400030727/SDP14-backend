@@ -112,7 +112,8 @@ public class SecurityConfig {
         configuration.setAllowedOriginPatterns(List.of(
             "http://localhost:3000",
             "http://localhost:5173",
-            "http://localhost:5174"
+            "http://localhost:5174",
+            "https://sdp14-frontend.onrender.com"
         ));
 
         configuration.setAllowedMethods(Arrays.asList(

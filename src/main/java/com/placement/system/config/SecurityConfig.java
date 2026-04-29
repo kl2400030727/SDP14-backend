@@ -62,11 +62,11 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
 
                 // ── Public ───────────────────────────────────────────────
-            	.requestMatchers("/", "/api/**", "/auth/**").permitAll()
-            	.requestMatchers("/api/**").permitAll()
-                .requestMatchers("/auth/**").permitAll()
-                .requestMatchers("/swagger-ui/**", "/api-docs/**", "/swagger-ui.html").permitAll()
-
+            	//.requestMatchers("/", "/api/**", "/auth/**").permitAll()
+            	//.requestMatchers("/api/**").permitAll()
+                //.requestMatchers("/auth/**").permitAll()
+                //.requestMatchers("/swagger-ui/**", "/api-docs/**", "/swagger-ui.html").permitAll()
+            	.requestMatchers("/", "/api/**", "/auth/**", "/swagger-ui/**", "/api-docs/**", "/swagger-ui.html").permitAll()
                 // ── GET /jobs and GET /jobs/** — ALL authenticated roles ──
                 // FIX: must be FIRST before any role-restricted rules
                 // "/jobs" (exact) + "/jobs/**" (with path segments) both needed
